@@ -1,7 +1,6 @@
 from agent import research
 from bias_agent import run_bias_check
 
-
 BIAS_COLORS = {
     "LEFT": "🔵",
     "CENTER-LEFT": "🔷",
@@ -11,10 +10,45 @@ BIAS_COLORS = {
     "UNKNOWN": "❓"
 }
 
+BIAS_OPTIONS = {
+    "1": "LEFT",
+    "2": "CENTER-LEFT",
+    "3": "NEUTRAL",
+    "4": "CENTER-RIGHT",
+    "5": "RIGHT"
+}
+
+BIAS_DESCRIPTIONS = {
+    "LEFT":         "Progressive/liberal framing, emphasizes social equity and systemic issues",
+    "CENTER-LEFT":  "Slightly liberal lean, mostly balanced but favors progressive conclusions",
+    "NEUTRAL":      "Purely factual, balanced perspectives from all sides",
+    "CENTER-RIGHT": "Slightly conservative lean, mostly balanced but favors traditional conclusions",
+    "RIGHT":        "Conservative framing, emphasizes personal responsibility and traditional values"
+}
+
+
+def ask_bias_preference() -> str:
+    """Ask the user how they want the research framed."""
+    print("\n" + "=" * 50)
+    print("  How would you like the research framed?")
+    print("=" * 50)
+    for key, label in BIAS_OPTIONS.items():
+        desc = BIAS_DESCRIPTIONS[label]
+        print(f"  {key}. {label:<15} — {desc}")
+    print()
+
+    while True:
+        choice = input("Enter 1-5: ").strip()
+        if choice in BIAS_OPTIONS:
+            selected = BIAS_OPTIONS[choice]
+            print(f"\n✅ Got it — researching with a {selected} perspective.\n")
+            return selected
+        print("Please enter a number between 1 and 5.")
+
 
 def print_bias_results(bias_results: list[dict]):
     print("\n" + "=" * 50)
-    print("       BIAS ANALYSIS")
+    print("       BIAS ANALYSIS OF SOURCES")
     print("=" * 50)
     for result in bias_results:
         icon = BIAS_COLORS.get(result["bias"], "❓")
@@ -41,15 +75,18 @@ def main():
             print("Goodbye!")
             break
 
-        # Step 1 — Run research agent
-        report, sources = research(question)
+        # Step 1 — Ask how they want it framed
+        bias_preference = ask_bias_preference()
 
-        # Step 2 — Print the report
+        # Step 2 — Run research with that framing
+        report, sources = research(question, bias_preference)
+
+        # Step 3 — Print the report
         print("\n" + "=" * 50)
         print(report)
         print("=" * 50)
 
-        # Step 3 — Run bias check if needed
+        # Step 4 — Run bias analysis on sources if controversial
         if sources:
             bias_results = run_bias_check(question, sources)
             if bias_results:
