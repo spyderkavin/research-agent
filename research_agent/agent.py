@@ -77,7 +77,7 @@ def research(question: str) -> tuple[str, list[dict]]:
 
     while True:
         response = client.models.generate_content(
-            model="gemini-2.0-flash-lite",
+            model="gemini-2.5-flash-lite",
             contents=messages,
             config=types.GenerateContentConfig(
                 system_instruction=SYSTEM_PROMPT,
