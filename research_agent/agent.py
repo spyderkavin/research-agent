@@ -1,24 +1,63 @@
 from google import genai
 from google.genai import types
-import os, json, re
+import os, re
 from dotenv import load_dotenv
+from pathlib import Path
 from tools import web_search, read_webpage
 
-load_dotenv()
+load_dotenv(Path(__file__).parent.parent / ".env")
 
 client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
 
-SYSTEM_PROMPT = """You are a thorough research agent. When given a research question:
+TOOLS = [web_search, read_webpage]
+
+BIAS_INSTRUCTIONS = {
+    "LEFT": """
+You are researching from a PROGRESSIVE/LEFT-LEANING perspective.
+- Prioritize sources from progressive outlets
+- Frame findings around social equity, systemic issues, and collective solutions
+- Highlight impacts on marginalized communities
+- Emphasize government and institutional responsibility
+""",
+    "CENTER-LEFT": """
+You are researching from a CENTER-LEFT perspective.
+- Use mostly mainstream and slightly progressive sources
+- Present balanced findings but lean toward progressive conclusions where evidence supports it
+- Acknowledge multiple perspectives but give slightly more weight to liberal viewpoints
+""",
+    "NEUTRAL": """
+You are researching from a NEUTRAL, UNBIASED perspective.
+- Use balanced sources from across the political spectrum
+- Present all sides equally with no favored framing
+- Stick strictly to facts and let the reader draw their own conclusions
+- Actively avoid loaded language
+""",
+    "CENTER-RIGHT": """
+You are researching from a CENTER-RIGHT perspective.
+- Use mostly mainstream and slightly conservative sources
+- Present balanced findings but lean toward conservative conclusions where evidence supports it
+- Acknowledge multiple perspectives but give slightly more weight to conservative viewpoints
+""",
+    "RIGHT": """
+You are researching from a CONSERVATIVE/RIGHT-LEANING perspective.
+- Prioritize sources from conservative outlets
+- Frame findings around personal responsibility, free markets, and traditional values
+- Emphasize individual impact over systemic explanations
+- Highlight concerns about government overreach where relevant
+"""
+}
+
+BASE_SYSTEM_PROMPT = """You are a thorough research agent. When given a research question:
 
 1. Break it into 2-3 focused sub-questions
-2. Search the web for each sub-question
+2. Search the web for each sub-question, choosing sources that match your perspective
 3. Read the most relevant pages in full for detail
-4. Synthesize everything into a structured final report
+4. Synthesize everything into a structured final report that reflects your assigned perspective
 
 Format your final report exactly like this:
 
 ## Summary
-(2-3 sentence overview)
+(2-3 sentence overview written from your assigned perspective)
 
 ## Key Findings
 - Finding 1
@@ -30,22 +69,18 @@ Format your final report exactly like this:
 - [Title](URL)
 - ...
 
-Only state things you found in your research. Always include every source you used.
+Always include every source you used. Only state things you found in your research.
 """
 
-TOOLS = [web_search, read_webpage]
 
-
-def run_tool(name: str, args: dict) -> str:
-    if name == "web_search":
-        return web_search(args["query"], args.get("max_results", 5))
-    elif name == "read_webpage":
-        return read_webpage(args["url"])
-    return f"Unknown tool: {name}"
+def build_system_prompt(bias_preference: str) -> str:
+    """Combine base prompt with the bias-specific instructions."""
+    bias_instruction = BIAS_INSTRUCTIONS.get(bias_preference, BIAS_INSTRUCTIONS["NEUTRAL"])
+    return BASE_SYSTEM_PROMPT + "\n## Your Perspective\n" + bias_instruction
 
 
 def extract_sources(report: str) -> list[dict]:
-    """Pull out sources from the report's ## Sources section."""
+    """Pull sources from the ## Sources section of the report."""
     sources = []
     in_sources = False
     for line in report.split("\n"):
@@ -53,7 +88,6 @@ def extract_sources(report: str) -> list[dict]:
             in_sources = True
             continue
         if in_sources and line.startswith("- "):
-            # Parse markdown links: [Title](URL)
             match = re.search(r'\[(.+?)\]\((https?://[^\)]+)\)', line)
             if match:
                 sources.append({
@@ -63,12 +97,15 @@ def extract_sources(report: str) -> list[dict]:
     return sources
 
 
-def research(question: str) -> tuple[str, list[dict]]:
+def research(question: str, bias_preference: str = "NEUTRAL") -> tuple[str, list[dict]]:
     """
-    Run the research agent.
+    Run the research agent with a specific bias framing.
     Returns (report_text, list of sources)
     """
-    print(f"\n🔍 Researching: {question}\n")
+    print(f"\n🔍 Researching: {question}")
+    print(f"🧭 Perspective: {bias_preference}\n")
+
+    system_prompt = build_system_prompt(bias_preference)
 
     messages = [types.Content(
         role="user",
@@ -80,7 +117,7 @@ def research(question: str) -> tuple[str, list[dict]]:
             model="gemini-2.5-flash-lite",
             contents=messages,
             config=types.GenerateContentConfig(
-                system_instruction=SYSTEM_PROMPT,
+                system_instruction=system_prompt,
                 tools=TOOLS,
             )
         )
@@ -117,3 +154,11 @@ def research(question: str) -> tuple[str, list[dict]]:
             role="user",
             parts=tool_results
         ))
+
+
+def run_tool(name: str, args: dict) -> str:
+    if name == "web_search":
+        return web_search(args["query"], args.get("max_results", 5))
+    elif name == "read_webpage":
+        return read_webpage(args["url"])
+    return f"Unknown tool: {name}"
