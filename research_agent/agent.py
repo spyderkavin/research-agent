@@ -74,13 +74,11 @@ Always include every source you used. Only state things you found in your resear
 
 
 def build_system_prompt(bias_preference: str) -> str:
-    """Combine base prompt with the bias-specific instructions."""
     bias_instruction = BIAS_INSTRUCTIONS.get(bias_preference, BIAS_INSTRUCTIONS["NEUTRAL"])
     return BASE_SYSTEM_PROMPT + "\n## Your Perspective\n" + bias_instruction
 
 
 def extract_sources(report: str) -> list[dict]:
-    """Pull sources from the ## Sources section of the report."""
     sources = []
     in_sources = False
     for line in report.split("\n"):
@@ -97,11 +95,15 @@ def extract_sources(report: str) -> list[dict]:
     return sources
 
 
+def run_tool(name: str, args: dict) -> str:
+    if name == "web_search":
+        return web_search(args["query"], args.get("max_results", 5))
+    elif name == "read_webpage":
+        return read_webpage(args["url"])
+    return f"Unknown tool: {name}"
+
+
 def research(question: str, bias_preference: str = "NEUTRAL") -> tuple[str, list[dict]]:
-    """
-    Run the research agent with a specific bias framing.
-    Returns (report_text, list of sources)
-    """
     print(f"\n🔍 Researching: {question}")
     print(f"🧭 Perspective: {bias_preference}\n")
 
@@ -154,11 +156,3 @@ def research(question: str, bias_preference: str = "NEUTRAL") -> tuple[str, list
             role="user",
             parts=tool_results
         ))
-
-
-def run_tool(name: str, args: dict) -> str:
-    if name == "web_search":
-        return web_search(args["query"], args.get("max_results", 5))
-    elif name == "read_webpage":
-        return read_webpage(args["url"])
-    return f"Unknown tool: {name}"

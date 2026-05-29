@@ -28,7 +28,6 @@ BIAS_DESCRIPTIONS = {
 
 
 def ask_bias_preference() -> str:
-    """Ask the user how they want the research framed."""
     print("\n" + "=" * 50)
     print("  How would you like the research framed?")
     print("=" * 50)
@@ -75,18 +74,13 @@ def main():
             print("Goodbye!")
             break
 
-        # Step 1 — Ask how they want it framed
         bias_preference = ask_bias_preference()
-
-        # Step 2 — Run research with that framing
         report, sources = research(question, bias_preference)
 
-        # Step 3 — Print the report
         print("\n" + "=" * 50)
         print(report)
         print("=" * 50)
 
-        # Step 4 — Run bias analysis on sources if controversial
         if sources:
             bias_results = run_bias_check(question, sources)
             if bias_results:
