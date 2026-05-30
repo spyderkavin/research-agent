@@ -1,6 +1,6 @@
 from google import genai
-from google.genai import types
 import os
+import time
 from dotenv import load_dotenv
 from pathlib import Path
 from tools import read_webpage
@@ -24,6 +24,7 @@ Reply with only YES or NO. Nothing else."""
         model="gemini-2.5-flash-lite",
         contents=prompt
     )
+    time.sleep(6)
     answer = response.text.strip().upper()
     return "YES" in answer
 
@@ -62,6 +63,7 @@ REASON: [One sentence explaining why]"""
         model="gemini-2.5-flash-lite",
         contents=prompt
     )
+    time.sleep(6)
 
     result = response.text.strip()
     bias = "UNKNOWN"

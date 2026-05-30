@@ -1,6 +1,6 @@
 from google import genai
 from google.genai import types
-import os, re
+import os, re, time
 from dotenv import load_dotenv
 from pathlib import Path
 from tools import web_search, read_webpage
@@ -124,13 +124,21 @@ def research(question: str, bias_preference: str = "NEUTRAL") -> tuple[str, list
             )
         )
 
+        candidate = response.candidates[0]
+
+        # Guard against empty response from Gemini
+        if candidate.content is None or candidate.content.parts is None:
+            print("  ⚠️  Gemini returned an empty response, retrying...")
+            time.sleep(6)
+            continue
+
         messages.append(types.Content(
             role="model",
-            parts=response.candidates[0].content.parts
+            parts=candidate.content.parts
         ))
 
         fn_calls = [
-            part for part in response.candidates[0].content.parts
+            part for part in candidate.content.parts
             if part.function_call is not None
         ]
 
